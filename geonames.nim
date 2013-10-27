@@ -10,12 +10,13 @@ import xmlparser
 import xmltree
 import streams
 import cgi
+import math
 
 
 # Define the types.
 type TGeoNamesPostalCode* = tuple[postalCode : string, name : string, countryCode : string, latitude : string, longitude : string,
                                   adminCode1 : string, adminName1 : string, adminCode2 : string, adminName2 : string, adminCode3 : string,
-                                  adminName3 : string]
+                                  adminName3 : string, distance : string]
 
 type TGeoNamesPostalCodes* = tuple[totalResults : int, codes : seq[TGeoNamesPostalCode]]
 
@@ -97,6 +98,69 @@ proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeSt
         # Add the codes to the return object.
         codes.codes = postCodes
         
+    # Return the postal codes.
+    return codes
+
+
+proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude : float = NaN, postalCode : string = "", country : string = "",
+                            localCountry : bool = false, maxRows : int = 5, radius : float = 0.0, style : string = "MEDIUM"): TGeoNamesPostalCodes = 
+    ## Returns a list of postal codes and places for the latitude/longitude specified. The result is sorted by distance.
+    
+    # Build the URL.
+    var url : string = "http://api.geonames.org/findNearbyPostalCodes?"
+    if math.classify(latitude) != fcNaN:
+        url = url & "lat=" & formatFloat(latitude) & "&lng=" & formatFloat(longitude) & "&"
+    else:
+        url = url & "postalcode=" & postalCode & "&"
+    if country != "":
+        url = url & "country=" & country & "&"
+    if localCountry == true:
+        url = url & "localCountry=true&"
+    else:
+        url = url & "localCountry=false&"
+    if radius != 0.0:
+        url = url & "radius=" & formatFloat(radius) & "&"
+    url = url & "style=" & style & "&"
+    url = url & "maxRows=" & intToStr(maxRows) & "&"
+    url = url & "username=" & username
+   
+    # Get the data.
+    var response : string = getContent(url)
+    
+    # Parse the XML.
+    var xml : PXmlNode = parseXML(newStringStream(response))
+    
+    # Create the return object.
+    var codes : TGeoNamesPostalCodes
+    
+    # Only add the codes if there are any.
+    if xml.child("code") != nil:
+        
+        # Loop through the codes and add the info.
+        var postCodesXML = xml.findAll("code")
+        var postCodes = newSeq[TGeoNamesPostalCode](len(postCodesXML))
+        for i in 0..high(postCodesXML):
+            
+            var code : TGeoNamesPostalCode
+            code.postalCode = postCodesXML[i].child("postalcode").innerText
+            code.name = postCodesXML[i].child("name").innerText
+            code.countryCode = postCodesXML[i].child("countryCode").innerText
+            code.latitude = postCodesXML[i].child("lat").innerText
+            code.longitude = postCodesXML[i].child("lng").innerText
+            code.distance = postCodesXML[i].child("distance").innerText
+            if style != "SHORT":
+                code.adminCode1 = postCodesXML[i].child("adminCode1").innerText
+                code.adminName1 = postCodesXML[i].child("adminName1").innerText
+                code.adminCode2 = postCodesXML[i].child("adminCode2").innerText
+                code.adminName2 = postCodesXML[i].child("adminName2").innerText
+                code.adminCode3 = postCodesXML[i].child("adminCode3").innerText
+                code.adminName3 = postCodesXML[i].child("adminName3").innerText
+            
+            postCodes[i] = code
+        
+        # Add the codes to the return object.
+        codes.codes = postCodes
     
     # Return the postal codes.
     return codes
+
