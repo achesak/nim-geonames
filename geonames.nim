@@ -14,6 +14,8 @@ import math
 
 
 # Define the types.
+type TGeoNamesCountry* = tuple[countryCode : string, countryName : string, numPostalCodes : int, minPostalCode : string, maxPostalCode : string]
+
 type TGeoNamesPostalCode* = tuple[postalCode : string, name : string, countryCode : string, latitude : string, longitude : string,
                                   adminCode1 : string, adminName1 : string, adminCode2 : string, adminName2 : string, adminCode3 : string,
                                   adminName3 : string, distance : string]
@@ -132,12 +134,14 @@ proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude
     
     # Create the return object.
     var codes : TGeoNamesPostalCodes
+    codes.totalResults = 0
     
     # Only add the codes if there are any.
     if xml.child("code") != nil:
         
         # Loop through the codes and add the info.
         var postCodesXML = xml.findAll("code")
+        codes.totalResults = len(postCodesXML)
         var postCodes = newSeq[TGeoNamesPostalCode](len(postCodesXML))
         for i in 0..high(postCodesXML):
             
@@ -164,3 +168,31 @@ proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude
     # Return the postal codes.
     return codes
 
+
+proc postalCodeCountryInfo*(username : string): seq[TGeoNamesCountry] = 
+    ## Returns the countries for which postal code geocoding is available.
+    
+    # Get the data.
+    var response : string = getContent("http://api.geonames.org/postalCodeCountryInfo?username=" & username)
+    
+    # Parse the XML.
+    var xml : PXmlNode = parseXML(newStringStream(response))
+    
+    # Create the return object.
+    var countryXML : seq[PXmlNode] = xml.findAll("country")
+    var countries = newSeq[TGeoNamesCountry](len(countryXML))
+    
+    # Loop through the countries and add them to the object.
+    for i in 0..high(countryXML):
+        
+        var country : TGeoNamesCountry
+        country.countryCode = countryXML[i].child("countryCode").innerText
+        country.countryName = countryXML[i].child("countryName").innerText
+        country.numPostalCodes = parseInt(countryXML[i].child("numPostalCodes").innerText)
+        country.minPostalCode = countryXML[i].child("minPostalCode").innerText
+        country.maxPostalCode = countryXML[i].child("maxPostalCode").innerText
+        
+        countries[i] = country
+    
+    # Return the country info.
+    return countries
