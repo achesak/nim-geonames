@@ -14,6 +14,12 @@ import math
 
 
 # Define the types.
+type TGeoNamesName* = tuple[toponymName : string, name : string, latitude : string, longitude : string, geonameID : string, countryCode : string,
+                            countryName : string, fcl : string, fcode : string, fclName : string, fcodeName : string, population : string,
+                            elevation : string, continentCode : string, adminCode1 : string, adminName1 : string, adminCode2 : string,
+                            adminName2 : string, adminCode3 : string, adminName3 : string, dstOffset : string, gmtOffset : string, timezone : string,
+                            distance : string]
+
 type TGeoNamesCountry* = tuple[countryCode : string, countryName : string, numPostalCodes : int, minPostalCode : string, maxPostalCode : string]
 
 type TGeoNamesPostalCode* = tuple[postalCode : string, name : string, countryCode : string, latitude : string, longitude : string,
@@ -196,3 +202,76 @@ proc postalCodeCountryInfo*(username : string): seq[TGeoNamesCountry] =
     
     # Return the country info.
     return countries
+
+
+proc findNearbyPlaceName*(username : string, latitude : float, longitude : float, language : string = "", radius : float = 0.0,
+                          maxRows : int = 10, localCountry : bool = true, cities : string = "", style : string = "MEDIUM"): seq[TGeoNamesName] = 
+    ## Returns the closest populated places for the latitude/longitude specified.
+    
+    # Build the URL.
+    var url : string = "http://api.geonames.org/findNearbyPlaceName?"
+    url = url & "lat=" & formatFloat(latitude) & "&"
+    url = url & "lng=" & formatFloat(longitude) & "&"
+    if language != "":
+        url = url & "lang=" & language & "&"
+    if radius != 0.0:
+        url = url & "radius=" & formatFloat(radius) & "&"
+    if cities != "":
+        url = url & "cities=" & cities & "&"
+    if localCountry == true:
+        url = url & "localCountry=true&"
+    else:
+        url = url & "localCountry=false&"
+    url = url & "maxRows=" & intToStr(maxRows) & "&"
+    url = url & "style=" & style & "&"
+    url = url & "username=" & username
+    
+    # Get the data.
+    var response : string = getContent(url)
+    
+    # Parse the XML.
+    var xml : PXmlNode = parseXML(newStringStream(response))
+    
+    # Create the return object.
+    var locations : seq[PXmlNode] = xml.findAll("geoname")
+    var names = newSeq[TGeoNamesName](len(locations))
+    
+    # Loop through the location and add them to the object.
+    for i in 0..high(locations):
+        
+        var location : TGeoNamesName
+        location.toponymName = locations[i].child("toponymName").innerText
+        location.name = locations[i].child("name").innerText
+        location.latitude = locations[i].child("lat").innerText
+        location.longitude = locations[i].child("lng").innerText
+        location.geonameID = locations[i].child("geonameId").innerText
+        location.countryCode = locations[i].child("countryCode").innerText
+        location.fcl = locations[i].child("fcl").innerText
+        location.fcode = locations[i].child("fcode").innerText
+        location.distance = locations[i].child("distance").innerText
+        if style == "MEDIUM" or style == "LONG" or style == "FULL":
+            location.countryName = locations[i].child("countryName").innerText
+        if style == "LONG" or style == "FULL":
+            location.fclName = locations[i].child("fclName").innerText
+            location.fcodeName = locations[i].child("fcodeName").innerText
+            location.population = locations[i].child("population").innerText
+        if style == "FULL":
+            location.elevation = locations[i].child("elevation").innerText
+            location.continentCode = locations[i].child("continentCode").innerText
+            if locations[i].child("adminCode1") != nil:
+                location.adminCode1 = locations[i].child("adminCode1").innerText
+                location.adminName1 = locations[i].child("adminName1").innerText
+            if locations[i].child("adminCode2") != nil:
+                location.adminCode2 = locations[i].child("adminCode2").innerText
+                location.adminName2 = locations[i].child("adminName2").innerText
+            if locations[i].child("adminCode3") != nil:
+                location.adminCode3 = locations[i].child("adminCode3").innerText
+                location.adminName3 = locations[i].child("adminName3").innerText
+            location.dstOffset = locations[i].child("timezone").attr("dstOffset")
+            location.gmtOffset = locations[i].child("timezone").attr("gmtOffset")
+            location.timezone = locations[i].child("timezone").innerText
+        
+        names[i] = location
+    
+    # Return the locations.
+    return names
