@@ -20,7 +20,7 @@ type TGeoNamesName* = tuple[toponymName : string, name : string, latitude : stri
                             countryName : string, fcl : string, fcode : string, fclName : string, fcodeName : string, population : string,
                             elevation : string, continentCode : string, adminCode1 : string, adminName1 : string, adminCode2 : string,
                             adminName2 : string, adminCode3 : string, adminName3 : string, dstOffset : string, gmtOffset : string, timezone : string,
-                            distance : string, alternateNames : string, bbox : TGeoNamesBBox]
+                            distance : string, alternateNames : string, bbox : TGeoNamesBBox, srtm3 : string]
 
 type TGeoNamesAddress* = tuple[street : string, mtfcc : string, streetNumber : string, latitude : string, longitude : string, distance : string,
                                postalCode : string, placeName : string, countryCode : string, adminCode1 : string, adminName1 : string, 
@@ -474,3 +474,64 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
     
     # Return the information.
     return name
+
+
+proc getGeoName*(username : string, id : string, language : string = "", style : string = "FULL"): TGeoNamesName = 
+    ## Returns the attribute of the geoNames feature with the specified id.
+    
+    # Build the URL.
+    var url : string = "http://api.geonames.org/get?"
+    url = url & "geonameId=" & id & "&"
+    if language != "":
+        url = url & "lang=" & language & "&"
+    url = url & "style=" & style & "&"
+    url = url & "username=" & username
+    
+    # Get the data.
+    var response : string = getContent(url)
+    
+    # Parse the XML.
+    var xml : PXmlNode = parseXML(newStringStream(response))
+    
+    # Create the return object.
+    var name : TGeoNamesName
+    
+    # Populate the return object.
+    name.toponymName = xml.child("toponymName").innerText
+    name.name = xml.child("name").innerText
+    name.latitude = xml.child("lat").innerText
+    name.longitude = xml.child("lng").innerText
+    name.geonameID = xml.child("geonameId").innerText
+    name.countryCode = xml.child("countryCode").innerText
+    name.countryName = xml.child("countryName").innerText
+    name.fcl = xml.child("fcl").innerText
+    name.fcode = xml.child("fcode").innerText
+    name.fclName = xml.child("fclName").innerText
+    name.fcodeName = xml.child("fcodeName").innerText
+    name.population = xml.child("population").innerText
+    name.alternateNames = xml.child("alternateNames").innerText
+    name.elevation = xml.child("elevation").innerText
+    name.srtm3 = xml.child("srtm3").innerText
+    name.continentCode = xml.child("continentCode").innerText
+    if xml.child("adminCode1") != nil:
+        name.adminCode1 = xml.child("adminCode1").innerText
+        name.adminName1 = xml.child("adminName1").innerText
+    if xml.child("adminCode2") != nil:
+        name.adminCode2 = xml.child("adminCode2").innerText
+        name.adminName2 = xml.child("adminName2").innerText
+    if xml.child("adminCode3") != nil:
+        name.adminCode3 = xml.child("adminCode3").innerText
+        name.adminName3 = xml.child("adminName3").innerText
+    name.timezone = xml.child("timezone").innerText
+    name.dstOffset = xml.child("timezone").attr("dstOffset")
+    name.gmtOffset = xml.child("timezone").attr("gmtOffset")
+    var b : TGeoNamesBBox
+    b.west = xml.child("bbox").child("west").innerText
+    b.north = xml.child("bbox").child("north").innerText
+    b.east = xml.child("bbox").child("east").innerText
+    b.south = xml.child("bbox").child("south").innerText
+    name.bbox = b
+    
+    # Return the info.
+    return name
+ 
