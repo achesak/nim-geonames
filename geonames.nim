@@ -3,6 +3,7 @@
 # Written by Adam Chesak.
 # Code released under the MIT open source license.
 
+
 # Import modules.
 import httpclient
 import strutils
@@ -14,33 +15,33 @@ import math
 
 
 # Define the types.
-type TGeoNamesBBox* = tuple[west : string, north : string, east : string, south : string]
+type GeoNamesBBox* = tuple[west : string, north : string, east : string, south : string]
 
-type TGeoNamesName* = tuple[toponymName : string, name : string, latitude : string, longitude : string, geonameID : string, countryCode : string,
+type GeoNamesName* = tuple[toponymName : string, name : string, latitude : string, longitude : string, geonameID : string, countryCode : string,
                             countryName : string, fcl : string, fcode : string, fclName : string, fcodeName : string, population : string,
                             elevation : string, continentCode : string, adminCode1 : string, adminName1 : string, adminCode2 : string,
                             adminName2 : string, adminCode3 : string, adminName3 : string, dstOffset : string, gmtOffset : string, timezone : string,
-                            distance : string, alternateNames : string, bbox : TGeoNamesBBox, srtm3 : string]
+                            distance : string, alternateNames : string, bbox : GeoNamesBBox, srtm3 : string]
 
-type TGeoNamesAddress* = tuple[street : string, mtfcc : string, streetNumber : string, latitude : string, longitude : string, distance : string,
+type GeoNamesAddress* = tuple[street : string, mtfcc : string, streetNumber : string, latitude : string, longitude : string, distance : string,
                                postalCode : string, placeName : string, countryCode : string, adminCode1 : string, adminName1 : string, 
                                adminCode2 : string, adminName2 : string, adminCode3 : string, adminName3 : string]
                             
-type TGeoNamesExtendedName* = tuple[nameType : string, address : TGeoNamesAddress, geonames : seq[TGeoNamesName], ocean : string]
+type GeoNamesExtendedName* = tuple[nameType : string, address : GeoNamesAddress, geonames : seq[GeoNamesName], ocean : string]
 
-type TGeoNamesCountry* = tuple[countryCode : string, countryName : string, numPostalCodes : int, minPostalCode : string, maxPostalCode : string]
+type GeoNamesCountry* = tuple[countryCode : string, countryName : string, numPostalCodes : int, minPostalCode : string, maxPostalCode : string]
 
-type TGeoNamesPostalCode* = tuple[postalCode : string, name : string, countryCode : string, latitude : string, longitude : string,
+type GeoNamesPostalCode* = tuple[postalCode : string, name : string, countryCode : string, latitude : string, longitude : string,
                                   adminCode1 : string, adminName1 : string, adminCode2 : string, adminName2 : string, adminCode3 : string,
                                   adminName3 : string, distance : string]
 
-type TGeoNamesPostalCodes* = tuple[totalResults : int, codes : seq[TGeoNamesPostalCode]]
+type GeoNamesPostalCodes* = tuple[totalResults : int, codes : seq[GeoNamesPostalCode]]
 
 
 proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeStartsWith : string = "", placeName : string = "", placeNameStartsWith : string = "",
                        country : string = "",  countryBias : string = "", maxRows : int = 10, style : string = "MEDIUM", operator : string = "AND", 
                        charset : string = "UTF8", isReduced : bool = false, east : float = 0.0, west : float = 0.0, north : float = 0.0,
-                       south : float = 0.0): TGeoNamesPostalCodes = 
+                       south : float = 0.0): GeoNamesPostalCodes = 
     ## Returns a list of postal codes and places for the placeName/postalCode specified.
     
     # Build the URL.
@@ -50,9 +51,9 @@ proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeSt
     elif postalCodeStartsWith != "":
         url = url & "postalcode_startsWith=" & postalCodeStartsWith & "&"
     elif placeName != "":
-        url = url & "placename=" & urlEncode(placeName) & "&"
+        url = url & "placename=" & encodeUrl(placeName) & "&"
     elif placeNameStartsWith != "":
-        url = url & "placename_startsWith=" & urlEncode(placeNameStartsWith) & "&"
+        url = url & "placename_startsWith=" & encodeUrl(placeNameStartsWith) & "&"
     if country != "":
         url = url & "country=" & country & "&"
     if countryBias != "":
@@ -79,10 +80,10 @@ proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeSt
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var codes : TGeoNamesPostalCodes
+    var codes : GeoNamesPostalCodes
     
     # Populate the return object.
     codes.totalResults = parseInt(xml.child("totalResultsCount").innerText)
@@ -92,10 +93,10 @@ proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeSt
         
         # Loop through the codes and add the info.
         var postCodesXML = xml.findAll("code")
-        var postCodes = newSeq[TGeoNamesPostalCode](len(postCodesXML))
+        var postCodes = newSeq[GeoNamesPostalCode](len(postCodesXML))
         for i in 0..high(postCodesXML):
             
-            var code : TGeoNamesPostalCode
+            var code : GeoNamesPostalCode
             code.postalCode = postCodesXML[i].child("postalcode").innerText
             code.name = postCodesXML[i].child("name").innerText
             code.countryCode = postCodesXML[i].child("countryCode").innerText
@@ -119,7 +120,7 @@ proc postalCodeSearch*(username : string, postalCode : string = "", postalCodeSt
 
 
 proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude : float = NaN, postalCode : string = "", country : string = "",
-                            localCountry : bool = false, maxRows : int = 5, radius : float = 0.0, style : string = "MEDIUM"): TGeoNamesPostalCodes = 
+                            localCountry : bool = false, maxRows : int = 5, radius : float = 0.0, style : string = "MEDIUM"): GeoNamesPostalCodes = 
     ## Returns a list of postal codes and places for the latitude/longitude specified. The result is sorted by distance.
     
     # Build the URL.
@@ -144,10 +145,10 @@ proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var codes : TGeoNamesPostalCodes
+    var codes : GeoNamesPostalCodes
     codes.totalResults = 0
     
     # Only add the codes if there are any.
@@ -156,10 +157,10 @@ proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude
         # Loop through the codes and add the info.
         var postCodesXML = xml.findAll("code")
         codes.totalResults = len(postCodesXML)
-        var postCodes = newSeq[TGeoNamesPostalCode](len(postCodesXML))
+        var postCodes = newSeq[GeoNamesPostalCode](len(postCodesXML))
         for i in 0..high(postCodesXML):
             
-            var code : TGeoNamesPostalCode
+            var code : GeoNamesPostalCode
             code.postalCode = postCodesXML[i].child("postalcode").innerText
             code.name = postCodesXML[i].child("name").innerText
             code.countryCode = postCodesXML[i].child("countryCode").innerText
@@ -183,23 +184,23 @@ proc findNearbyPostalCodes*(username : string, latitude : float = NaN, longitude
     return codes
 
 
-proc postalCodeCountryInfo*(username : string): seq[TGeoNamesCountry] = 
+proc postalCodeCountryInfo*(username : string): seq[GeoNamesCountry] = 
     ## Returns the countries for which postal code geocoding is available.
     
     # Get the data.
     var response : string = getContent("http://api.geonames.org/postalCodeCountryInfo?username=" & username)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var countryXML : seq[PXmlNode] = xml.findAll("country")
-    var countries = newSeq[TGeoNamesCountry](len(countryXML))
+    var countryXML : seq[XmlNode] = xml.findAll("country")
+    var countries = newSeq[GeoNamesCountry](len(countryXML))
     
     # Loop through the countries and add them to the object.
     for i in 0..high(countryXML):
         
-        var country : TGeoNamesCountry
+        var country : GeoNamesCountry
         country.countryCode = countryXML[i].child("countryCode").innerText
         country.countryName = countryXML[i].child("countryName").innerText
         country.numPostalCodes = parseInt(countryXML[i].child("numPostalCodes").innerText)
@@ -213,7 +214,7 @@ proc postalCodeCountryInfo*(username : string): seq[TGeoNamesCountry] =
 
 
 proc findNearbyPlaceName*(username : string, latitude : float, longitude : float, language : string = "", radius : float = 0.0,
-                          maxRows : int = 10, localCountry : bool = true, cities : string = "", style : string = "MEDIUM"): seq[TGeoNamesName] = 
+                          maxRows : int = 10, localCountry : bool = true, cities : string = "", style : string = "MEDIUM"): seq[GeoNamesName] = 
     ## Returns the closest populated places for the latitude/longitude specified.
     
     # Build the URL.
@@ -238,16 +239,16 @@ proc findNearbyPlaceName*(username : string, latitude : float, longitude : float
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var locations : seq[PXmlNode] = xml.findAll("geoname")
-    var names = newSeq[TGeoNamesName](len(locations))
+    var locations : seq[XmlNode] = xml.findAll("geoname")
+    var names = newSeq[GeoNamesName](len(locations))
     
     # Loop through the location and add them to the object.
     for i in 0..high(locations):
         
-        var location : TGeoNamesName
+        var location : GeoNamesName
         location.toponymName = locations[i].child("toponymName").innerText
         location.name = locations[i].child("name").innerText
         location.latitude = locations[i].child("lat").innerText
@@ -287,7 +288,7 @@ proc findNearbyPlaceName*(username : string, latitude : float, longitude : float
 
 
 proc findNearby*(username : string, latitude : float, longitude : float,  radius : float = 0.0, featureClass : string = "",
-                 featureCode : string = "", maxRows : int = 10, localCountry : bool = true, style : string = "MEDIUM"): seq[TGeoNamesName] = 
+                 featureCode : string = "", maxRows : int = 10, localCountry : bool = true, style : string = "MEDIUM"): seq[GeoNamesName] = 
     ## Returns the closest toponym for the latitude/longitude specified.
     
     # Build the URL.
@@ -312,16 +313,16 @@ proc findNearby*(username : string, latitude : float, longitude : float,  radius
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var locations : seq[PXmlNode] = xml.findAll("geoname")
-    var names = newSeq[TGeoNamesName](len(locations))
+    var locations : seq[XmlNode] = xml.findAll("geoname")
+    var names = newSeq[GeoNamesName](len(locations))
     
     # Loop through the location and add them to the object.
     for i in 0..high(locations):
         
-        var location : TGeoNamesName
+        var location : GeoNamesName
         location.toponymName = locations[i].child("toponymName").innerText
         location.name = locations[i].child("name").innerText
         location.latitude = locations[i].child("lat").innerText
@@ -360,7 +361,7 @@ proc findNearby*(username : string, latitude : float, longitude : float,  radius
     return names
 
 
-proc extendedFindNearby*(username : string, latitude : float, longitude : float, style : string = "MEDIUM"): TGeoNamesExtendedName = 
+proc extendedFindNearby*(username : string, latitude : float, longitude : float, style : string = "MEDIUM"): GeoNamesExtendedName = 
     ## Returns the most detailed information available for he latitude/longitude specified. In the US it returns the address information,
     ## in other countries it returns the heirarchy service, and for oceans it returns the ocean name.
     
@@ -375,10 +376,10 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var name : TGeoNamesExtendedName
+    var name : GeoNamesExtendedName
     
     # If the place is an ocean:
     if xml.child("ocean") != nil:
@@ -390,8 +391,8 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
     if xml.child("address") != nil:
         
         name.nameType = "address"
-        var ad : PXmlNode = xml.child("address")
-        var a : TGeoNamesAddress
+        var ad : XmlNode = xml.child("address")
+        var a : GeoNamesAddress
         a.street = ad.child("street").innerText
         a.mtfcc = ad.child("mtfcc").innerText
         a.streetNumber = ad.child("streetNumber").innerText
@@ -419,13 +420,13 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
         name.nameType = "geoname"
         
         # Create the return object.
-        var g : seq[PXmlNode] = xml.findAll("geoname")
-        var names = newSeq[TGeoNamesName](len(g))
+        var g : seq[XmlNode] = xml.findAll("geoname")
+        var names = newSeq[GeoNamesName](len(g))
         
         # Loop through the names and add them to the object.
         for i in 0..high(g):
             
-            var n : TGeoNamesName
+            var n : GeoNamesName
             n.toponymName = g[i].child("toponymName").innerText
             n.name = g[i].child("name").innerText
             n.latitude = g[i].child("lat").innerText
@@ -460,7 +461,7 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
                     n.gmtOffset = g[i].child("timezone").attr("gmtOffset")
                     n.timezone = g[i].child("timezone").innerText
                 if g[i].child("bbox") != nil:
-                    var b : TGeoNamesBBox
+                    var b : GeoNamesBBox
                     b.west = g[i].child("bbox").child("west").innerText
                     b.north = g[i].child("bbox").child("north").innerText
                     b.east = g[i].child("bbox").child("east").innerText
@@ -476,7 +477,7 @@ proc extendedFindNearby*(username : string, latitude : float, longitude : float,
     return name
 
 
-proc getGeoName*(username : string, id : string, language : string = "", style : string = "FULL"): TGeoNamesName = 
+proc getGeoName*(username : string, id : string, language : string = "", style : string = "FULL"): GeoNamesName = 
     ## Returns the attribute of the geoNames feature with the specified id.
     
     # Build the URL.
@@ -491,10 +492,10 @@ proc getGeoName*(username : string, id : string, language : string = "", style :
     var response : string = getContent(url)
     
     # Parse the XML.
-    var xml : PXmlNode = parseXML(newStringStream(response))
+    var xml : XmlNode = parseXML(newStringStream(response))
     
     # Create the return object.
-    var name : TGeoNamesName
+    var name : GeoNamesName
     
     # Populate the return object.
     name.toponymName = xml.child("toponymName").innerText
@@ -525,7 +526,7 @@ proc getGeoName*(username : string, id : string, language : string = "", style :
     name.timezone = xml.child("timezone").innerText
     name.dstOffset = xml.child("timezone").attr("dstOffset")
     name.gmtOffset = xml.child("timezone").attr("gmtOffset")
-    var b : TGeoNamesBBox
+    var b : GeoNamesBBox
     b.west = xml.child("bbox").child("west").innerText
     b.north = xml.child("bbox").child("north").innerText
     b.east = xml.child("bbox").child("east").innerText
