@@ -1,11 +1,13 @@
----- About ----
+About
+=====
 
 nim-geonames is a Nim wrapper for the GeoNames API.
 
-See the documentation.html file for documentation, and the offical documentation at http://www.geonames.org/export/web-services.html for more info on the API.
+Run `nim doc geonames.nim` for documentation, and see the offical documentation at http://www.geonames.org/export/web-services.html for more info on the API.
 
 Note that nim-geonames does not yet have procs for all of the GeoNames services, but the core ones are already done.
 
----- License ----
+License
+=======
 
 nim-geonames is released under the MIT open source license.
